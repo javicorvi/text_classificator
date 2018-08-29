@@ -78,7 +78,7 @@ class ClassifierServiceImpl implements ClassifierService {
 				File inputDirectory = new File(inputDirectoryPath);
 				File[] files =  inputDirectory.listFiles();
 				for (File file_to_classify : files) {
-					if(file_to_classify.getName().endsWith(".gz.xml.txt") && !file_to_classify.getName().contains("sentences") && filesProcessed!=null && !filesProcessed.contains(file_to_classify.getName())){
+					if(file_to_classify.getName().endsWith(".txt") && file_to_classify.getName().contains("sentences") && filesProcessed!=null && !filesProcessed.contains(file_to_classify.getName())){
 						Boolean result = this.classify(file_to_classify, cdc, outputDirectory, relevantLabel);
 						if(result) {
 							filesPrecessedWriter.write(file_to_classify.getName()+"\n");
@@ -89,7 +89,7 @@ class ClassifierServiceImpl implements ClassifierService {
 			}
 		    filesPrecessedWriter.close();
 		}  catch (Exception e) {
-			classifierLog.error("Generic error in the classification step");
+			classifierLog.error("Generic error in the classification step",e);
 		}
 	}
 
@@ -125,12 +125,15 @@ class ClassifierServiceImpl implements ClassifierService {
 			 BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(fos));
 			 classifierLog.info(" File to classify " + file_to_classify.getAbsolutePath());
 			 for (String line : ObjectBank.getLineIterator(file_to_classify.getAbsolutePath(), "utf-8")) {
-				 line = "\t" + line;
+				 //line = "\t" + line;  for training review
 				 Datum<String,String> d = cdc.makeDatumFromLine(line);
 				 //System.out.printf("%s  ==>  %s (%.4f)%n", line, lc.classOf(d), lc.scoresOf(d).getCount(lc.classOf(d)));
+				 String[] data = line.split("\t");
 				 if(cdc.classOf(d)!=null && cdc.classOf(d).equals(relevantLabel)) {
 					 bw.write(cdc.scoresOf(d).getCount(cdc.classOf(d)) + "\t" + relevantLabel +  "\t" + line);
 					 bw.newLine();
+				 }else {
+					 System.out.print("");
 				 }
 			 }
 			 bw.close(); 
