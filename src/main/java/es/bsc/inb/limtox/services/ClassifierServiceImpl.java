@@ -24,13 +24,9 @@ import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
 import org.springframework.stereotype.Service;
 
-import edu.stanford.nlp.classify.Classifier;
 import edu.stanford.nlp.classify.ColumnDataClassifier;
-import edu.stanford.nlp.classify.LinearClassifier;
-import edu.stanford.nlp.classify.LogisticClassifier;
 import edu.stanford.nlp.ling.Datum;
 import edu.stanford.nlp.objectbank.ObjectBank;
-import edu.stanford.nlp.util.ErasureUtils;
 @Service
 class ClassifierServiceImpl implements ClassifierService {
 
@@ -73,12 +69,12 @@ class ClassifierServiceImpl implements ClassifierService {
 			
 		    List<String> filesProcessed = readFilesProcessed(outputDirectoryPath); 
 		    
-		    BufferedWriter filesPrecessedWriter = new BufferedWriter(new FileWriter(outputDirectoryPath + File.separator + "list_files_processed.txt", true));
+		    BufferedWriter filesPrecessedWriter = new BufferedWriter(new FileWriter(outputDirectoryPath + File.separator + "list_files_processed.dat", true));
 		    if (Files.isDirectory(Paths.get(inputDirectoryPath))) {
 				File inputDirectory = new File(inputDirectoryPath);
 				File[] files =  inputDirectory.listFiles();
 				for (File file_to_classify : files) {
-					if(file_to_classify.getName().endsWith(".txt") && !file_to_classify.getName().contains("sentences") && filesProcessed!=null && !filesProcessed.contains(file_to_classify.getName())){
+					if(file_to_classify.getName().endsWith(".txt") && filesProcessed!=null && !filesProcessed.contains(file_to_classify.getName())){
 						Boolean result = this.classify(file_to_classify, cdc, outputDirectory, relevantLabel);
 						if(result) {
 							filesPrecessedWriter.write(file_to_classify.getName()+"\n");
@@ -96,8 +92,8 @@ class ClassifierServiceImpl implements ClassifierService {
 	private List<String> readFilesProcessed(String outputDirectoryPath) {
 		List<String> files_processed = new ArrayList<String>();
 		try {
-			if(Files.isRegularFile(Paths.get(outputDirectoryPath + File.separator + "list_files_processed.txt"))) {
-				FileReader fr = new FileReader(outputDirectoryPath + File.separator + "list_files_processed.txt");
+			if(Files.isRegularFile(Paths.get(outputDirectoryPath + File.separator + "list_files_processed.dat"))) {
+				FileReader fr = new FileReader(outputDirectoryPath + File.separator + "list_files_processed.dat");
 			    BufferedReader br = new BufferedReader(fr);
 			    
 			    String sCurrentLine;
@@ -125,22 +121,27 @@ class ClassifierServiceImpl implements ClassifierService {
 			 fos = new FileOutputStream(fout);
 			 BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(fos));
 			 classifierLog.info(" File to classify " + file_to_classify.getAbsolutePath());
-			 int true_negative = 0;
 			 for (String line : ObjectBank.getLineIterator(file_to_classify.getAbsolutePath(), "utf-8")) {
-				 line = "\t" + line;  //for training review and limtox 1.0 test
-				 Datum<String,String> d = cdc.makeDatumFromLine(line);
-				 //System.out.printf("%s  ==>  %s (%.4f)%n", line, lc.classOf(d), lc.scoresOf(d).getCount(lc.classOf(d)));
 				 String[] data = line.split("\t");
+				 String line_to_classify = "\t" + data[0] + "\t" + data[2];
+				 Datum<String,String> d = cdc.makeDatumFromLine(line_to_classify);
 				 if(cdc.classOf(d)!=null && cdc.classOf(d).equals(relevantLabel)) {
-					 bw.write(cdc.scoresOf(d).getCount(cdc.classOf(d)) + "\t" + relevantLabel +  "\t" + line);
+					 //for now are the same, because in position:
+					 // data[0] is the identificator
+					 // data[1] is the Title (blocks) or the section name (sentences) 
+					 // data[2] is the text to that was classified
+					 bw.write(relevantLabel + "\t" + cdc.scoresOf(d).getCount(cdc.classOf(d)) + "\t" + data[0] + "\t" + data[1] + "\t" + data[2]);
+					 /*if(sectionIndex!=-1) {
+						 bw.write(relevantLabel + "\t" + cdc.scoresOf(d).getCount(cdc.classOf(d)) + "\t" + data[0] + "\t" + data[1] + "\t" + data[2]);
+					 }else {
+						 bw.write(relevantLabel + "\t" + cdc.scoresOf(d).getCount(cdc.classOf(d)) + "\t" + data[0] + "\t" + data[1] + "\t" + data[2]);
+					 }*/
 					 bw.newLine();
-					 true_negative = true_negative + 1;
-				 }else {
+				}else {
 					 System.out.print("");
 				 }
 			 }
 			 bw.close(); 
-			 classifierLog.info(" File to classify " + file_to_classify.getAbsolutePath() + " true_negative " + true_negative);
 			 return true;
 		} catch (FileNotFoundException e) {
 			classifierLog.error(" File not Found " + file_to_classify.getAbsolutePath(), e);
