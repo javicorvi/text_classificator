@@ -40,12 +40,17 @@ class ClassifierServiceImpl implements ClassifierService {
 			classifierLog.info("Input directory with the articles to classify : " + propertiesParameters.getProperty("inputDirectory"));
 			classifierLog.info("Outup directory with the relevant articles : " + propertiesParameters.getProperty("outputDirectory"));
 			classifierLog.info("Relevant articles label: " + propertiesParameters.getProperty("relevantLabel"));
+			classifierLog.info("Is sentence classification: " + propertiesParameters.getProperty("is_sentences_classification"));
 			
 			String classificatorModel = propertiesParameters.getProperty("classificatorModel");
 			String inputDirectoryPath = propertiesParameters.getProperty("inputDirectory");
 			String outputDirectoryPath = propertiesParameters.getProperty("outputDirectory");
 			String relevantLabel = propertiesParameters.getProperty("relevantLabel");
-			
+			String is_sentences_classification_ = propertiesParameters.getProperty("is_sentences_classification");
+			Boolean is_sentences_classification = false;
+			if(is_sentences_classification_!=null & is_sentences_classification_.equals("true")) {
+				is_sentences_classification = true;
+			}
 			//Levantar ColumnDataClassifier
 			ByteArrayInputStream bais = new ByteArrayInputStream(FileUtils.readFileToByteArray(new File(classificatorModel)));
 		    ObjectInputStream ois = new ObjectInputStream(bais);
@@ -75,7 +80,7 @@ class ClassifierServiceImpl implements ClassifierService {
 				File[] files =  inputDirectory.listFiles();
 				for (File file_to_classify : files) {
 					if(file_to_classify.getName().endsWith(".txt") && filesProcessed!=null && !filesProcessed.contains(file_to_classify.getName())){
-						Boolean result = this.classify(file_to_classify, cdc, outputDirectory, relevantLabel);
+						Boolean result = this.classify(file_to_classify, cdc, outputDirectory, relevantLabel, is_sentences_classification);
 						if(result) {
 							filesPrecessedWriter.write(file_to_classify.getName()+"\n");
 							filesPrecessedWriter.flush();
@@ -114,7 +119,7 @@ class ClassifierServiceImpl implements ClassifierService {
 	 * Classify 
 	 * @param file_to_classify
 	 */
-	 private Boolean classify(File file_to_classify,  ColumnDataClassifier cdc , File outputDirectory, String relevantLabel) {
+	 private Boolean classify(File file_to_classify,  ColumnDataClassifier cdc , File outputDirectory, String relevantLabel, Boolean is_sentences_classification) {
 		 File fout = new File(outputDirectory.getAbsoluteFile() + File.separator + file_to_classify.getName());
 		 FileOutputStream fos;
 		 try {
@@ -123,8 +128,14 @@ class ClassifierServiceImpl implements ClassifierService {
 			 classifierLog.info(" File to classify " + file_to_classify.getAbsolutePath());
 			 for (String line : ObjectBank.getLineIterator(file_to_classify.getAbsolutePath(), "utf-8")) {
 				 String[] data = line.split("\t");
-				 String line_to_classify = "\t" + data[0] + "\t" + data[2];
-				 Datum<String,String> d = cdc.makeDatumFromLine(line_to_classify);
+				 String line_to_classify = "";
+				 if(is_sentences_classification) {
+					 line_to_classify = "\t" + data[0] + "\t" + data[2];
+				 }else {
+					 //para abstracts
+					 line_to_classify = "\t" + data[0] + "\t" + data[1] + "\t" + data[2]; 
+				 }
+				  Datum<String,String> d = cdc.makeDatumFromLine(line_to_classify);
 				 if(cdc.classOf(d)!=null && cdc.classOf(d).equals(relevantLabel)) {
 					 //for now are the same, because in position:
 					 // data[0] is the identificator
@@ -137,9 +148,7 @@ class ClassifierServiceImpl implements ClassifierService {
 						 bw.write(relevantLabel + "\t" + cdc.scoresOf(d).getCount(cdc.classOf(d)) + "\t" + data[0] + "\t" + data[1] + "\t" + data[2]);
 					 }*/
 					 bw.newLine();
-				}else {
-					 System.out.print("");
-				 }
+				}
 			 }
 			 bw.close(); 
 			 return true;
