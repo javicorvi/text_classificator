@@ -127,28 +127,42 @@ class ClassifierServiceImpl implements ClassifierService {
 			 BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(fos));
 			 classifierLog.info(" File to classify " + file_to_classify.getAbsolutePath());
 			 for (String line : ObjectBank.getLineIterator(file_to_classify.getAbsolutePath(), "utf-8")) {
-				 String[] data = line.split("\t");
-				 String line_to_classify = "";
-				 if(is_sentences_classification) {
-					 line_to_classify = "\t" + data[0] + "\t" + data[2];
-				 }else {
-					 //para abstracts
-					 line_to_classify = "\t" + data[0] + "\t" + data[1] + "\t" + data[2]; 
-				 }
-				  Datum<String,String> d = cdc.makeDatumFromLine(line_to_classify);
-				 if(cdc.classOf(d)!=null && cdc.classOf(d).equals(relevantLabel)) {
-					 //for now are the same, because in position:
-					 // data[0] is the identificator
-					 // data[1] is the Title (blocks) or the section name (sentences) 
-					 // data[2] is the text to that was classified
-					 bw.write(relevantLabel + "\t" + cdc.scoresOf(d).getCount(cdc.classOf(d)) + "\t" + data[0] + "\t" + data[1] + "\t" + data[2]);
-					 /*if(sectionIndex!=-1) {
-						 bw.write(relevantLabel + "\t" + cdc.scoresOf(d).getCount(cdc.classOf(d)) + "\t" + data[0] + "\t" + data[1] + "\t" + data[2]);
+				 try {
+					 String[] data = line.split("\t");
+					 String line_to_classify = "";
+					 if(is_sentences_classification) {
+						 line_to_classify = "\t" + data[0] + "\t" + data[3];
 					 }else {
-						 bw.write(relevantLabel + "\t" + cdc.scoresOf(d).getCount(cdc.classOf(d)) + "\t" + data[0] + "\t" + data[1] + "\t" + data[2]);
-					 }*/
-					 bw.newLine();
-				}
+						 //para abstracts
+						 line_to_classify = "\t" + data[0] + "\t" + data[3] + "\t" + data[4]; //data[0]=id, data[3]=title, data[4]=abstract
+					 }
+					  Datum<String,String> d = cdc.makeDatumFromLine(line_to_classify);
+					 if(cdc.classOf(d)!=null && cdc.classOf(d).equals(relevantLabel)) {
+						 //for now are the same, because in position:
+						 // data[0] is the identificator
+						 // data[1] source
+						 // data[2] section
+						 // data[3] is the Title (blocks) or the section name (sentences) 
+						 // data[4] is the text to that was classified
+						 if(is_sentences_classification) {
+							 bw.write(relevantLabel + "\t" + cdc.scoresOf(d).getCount(cdc.classOf(d)) + "\t" + data[0] + "\t" + data[1] + "\t" + data[2] + "\t" + data[3]);
+						 }else {
+							 bw.write(relevantLabel + "\t" + cdc.scoresOf(d).getCount(cdc.classOf(d)) + "\t" + data[0] + "\t" + data[1] + "\t" + data[2] + "\t" + data[3] + "\t" + data [4]);
+						 }
+						 /*if(sectionIndex!=-1) {
+							 bw.write(relevantLabel + "\t" + cdc.scoresOf(d).getCount(cdc.classOf(d)) + "\t" + data[0] + "\t" + data[1] + "\t" + data[2]);
+						 }else {
+							 bw.write(relevantLabel + "\t" + cdc.scoresOf(d).getCount(cdc.classOf(d)) + "\t" + data[0] + "\t" + data[1] + "\t" + data[2]);
+						 }*/
+						 bw.newLine();
+					 }
+				}catch (ArrayIndexOutOfBoundsException e) {
+					classifierLog.error(" Error with line: "+ line );
+					classifierLog.error(" Error with line, in file: " + file_to_classify.getAbsolutePath() + " there is not the correct columns for the line ", e);
+				}catch (Exception e) {
+					classifierLog.error(" Error with line: "+ line );
+					classifierLog.error(" Error with line, in file: " + file_to_classify.getAbsolutePath(), e);
+				} 
 			 }
 			 bw.close(); 
 			 return true;
